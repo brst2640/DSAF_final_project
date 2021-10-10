@@ -1,0 +1,83 @@
+---
+title: "NYPD Shooting RMD"
+author: "Bryan Strub"
+date: "9/12/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+#### About the data:
+
+> List of every shooting incident that occurred in NYC going back to 2006 through the end of the previous calendar year.
+
+> This is a breakdown of every shooting incident that occurred in NYC going back to 2006 through the end of the previous calendar year. This data is manually extracted every quarter and reviewed by the Office of Management Analysis and Planning before being posted on the NYPD website. Each record represents a shooting incident in NYC and includes information about the event, the location and time of occurrence. In addition, information related to suspect and victim demographics is also included.
+
+> Github account: https://github.com/brst2640/DSAF_final_project
+
+URL: https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic
+
+#### Required packages:
+
+This Rmd file depends on the following libraries:
+
+* tibble
+* magrittr
+* data.table
+* ggplot
+
+
+## Step 1: Start an Rmd Document
+```{r dataintro}
+library(tibble)
+library(magrittr)
+library(data.table)
+library(ggplot2)
+main <- read.csv("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD") %>% as_tibble
+```
+
+## Step 2: Tidy and Transform Your Data
+```{r datadisplay, echo = FALSE}
+main
+```
+
+
+## Step 3: Add Visualizations and Analysis
+```{r viz, echo = FALSE}
+main <- as.data.table(main)
+main[, OCCUR_DATE := as.POSIXct(OCCUR_DATE, format = '%m/%d/%Y')]
+main[, OCCUR_MONTH_YEAR := substr(OCCUR_DATE,1,7)]
+main[, N_MONTH_YEAR := .N, by = "OCCUR_MONTH_YEAR"]
+main_month_year <- unique(main[,c("OCCUR_MONTH_YEAR","N_MONTH_YEAR")])
+
+ggplot(main[OCCUR_DATE >= '2018-01-01'], aes(x = OCCUR_MONTH_YEAR, Y = "N_MONTH_YEAR")) +
+  geom_bar(aes(fill = BORO)) +
+  labs(title = "NYC Shootings By Month since 2018", x = "Month - Year", y = "N") + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+ggplot(main, aes(x = "", fill = factor(VIC_RACE))) + 
+  geom_bar(width = 1) +
+  coord_polar("y", start=0) +
+  labs(fill="Victim Race", 
+       x=NULL, 
+       y=NULL, 
+       title="Pie Chart of Victim Race") +
+  theme_void()
+```
+
+## Step 4: Conclusion and Bias Identification
+
+This has been a short introduction to the NYPD Shootings data set and some key statistics and takeaways from the data. As a white male who lives on the west coast, I have not experienced what many others, particularly people of color, have experienced in the different New York neighborhoods, and in that respect am biased towards my own personal history. In order to mitigate this, I provided visualizations on the proportion of shooting victims by race and the number of shootings over time by New York Neighborhood.
+
+
+## Session Info
+```{r session, echo = FALSE}
+sessionInfo()
+```

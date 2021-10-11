@@ -1,0 +1,108 @@
+---
+title: "COVID US Deaths Report"
+author: "Bryan Strub"
+date: "10/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+#### About the data:
+
+
+> The dataset I will be reporting on is the time_series_covid19_deaths_US.csv data from Johns Hopkins. This dataset contains time series data of COVID related deaths by US county. It is updated on a daily basis for all counties. The data contains columns for a unique row identifier, iso2 code, iso3 code, FIPS, County name, State name, latitude, longitude, population, and a variable for every date since January 22nd, 2020. In order for analysis to occur, the data will be 'melted' so that the data is 'long' by date/location, instead of 'wide' by date.
+
+URL: https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series
+
+#### Required packages:
+
+This Rmd file depends on the following libraries:
+
+* tibble
+* magrittr
+* data.table
+* ggplot
+* scales
+
+
+## Initialize RMD document and read in data
+```{r dataintro}
+library(ggplot2)
+library(magrittr)
+library(data.table)
+library(scales)
+main <- read.csv("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv",stringsAsFactors = FALSE) %>% as.data.table
+
+```
+
+## Tidy and Transform The Data
+```{r datadisplay}
+main <- melt(main,id.vars = c("UID","iso2","iso3","code3","FIPS","Admin2","Province_State","Country_Region","Lat","Long_","Combined_Key","Population"))
+main[, variable := as.POSIXct(gsub("\\.","/",gsub("X","",variable)),format = "%m/%d/%y")]
+```
+
+
+## Add Visualizations and Analysis
+```{r viz}
+main[, c("UID","iso2","iso3","code3","FIPS","Country_Region","Lat","Long_","Combined_Key") := NULL]
+east.coast <- main[Province_State %in% c("Connecticut","Delaware","Florida","Georgia",'Maine',"Maryland","Massachusetts","New Hampshire","New Jersey","New York","North Carolina","Pennsylvania","Rhode Island","South Carolina","Virginia")]
+east.coast[, COAST := "EAST"]
+west.coast <- main[Province_State %in% c("Washington","Oregon","California")]
+west.coast[, COAST := "WEST"]
+
+both.coasts <- rbind(east.coast,west.coast)
+both.coasts[, value := sum(value), by = c("Province_State","variable")]
+both.coasts[, Population := sum(Population), by = c("Province_State","variable")]
+both.coasts[, Admin2 := NULL]
+both.coasts <- unique(both.coasts)
+
+# both.coasts[,variable := substr(variable,1,7)]
+# both.coasts[, value := sum(value), by = c("Province_State","variable")]
+# both.coasts <- unique(both.coasts)
+
+
+ggplot(both.coasts, aes(fill=Province_State, y=value, x=variable)) + 
+    geom_bar( stat="identity") +
+    scale_y_continuous(labels = comma) +
+    labs(title = "N Deaths by Month - West Coast and East Coast", x = "Year - Month", y = "N") + 
+    theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+both.coasts.agg <- copy(both.coasts)
+both.coasts.agg <- both.coasts.agg[variable == max(variable)]
+
+ggplot(both.coasts.agg, aes(x="", y=value, fill= Province_State)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  labs(fill="N Deaths by State Total", 
+       x=NULL, 
+       y=NULL, 
+       title="Pie Chart of the Total Number of Deaths") +
+  theme_void()
+
+ggplot(both.coasts.agg, aes(Population,value)) +
+  geom_point(aes(col= Province_State)) +
+  geom_smooth(method='lm',se = FALSE) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  labs(
+       x=NULL, 
+       y=NULL, 
+       title="Population Vs. N Deaths Linear model")
+
+```
+
+## Conclusion and Bias Identification
+
+This has been a short introduction to the Johns Hopkins COVID Deaths data set and some key statistics and takeaways from the data. In general, population is a factor when determining the number of COVID deaths you would expect to see in a given state. There are some exceptions to this rule, however, as you would expect population influences number of COVID deaths.
+
+In regards to potential bias, as someone who lives on the west coast, I have not experienced what many others around the United States have expereinced in regards to the Coronavirus Pandemic. There may be factors that I am missing that should be taken into account when modeling the number of COVID deaths by State.
+
+
+## Session Info
+```{r session, echo = FALSE}
+sessionInfo()
+```
